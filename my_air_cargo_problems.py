@@ -4,7 +4,6 @@ from aimacode.search import (
     Node, Problem,
 )
 from aimacode.utils import expr
-from aimacode.utils import Bool
 from lp_utils import (
     FluentState, encode_state, decode_state,
 )
@@ -77,7 +76,7 @@ class AirCargoProblem(Problem):
                         loads.append(load)
             
             return loads
-
+        
         def unload_actions():
             """Create all concrete Unload actions and return a list
 
@@ -138,16 +137,12 @@ class AirCargoProblem(Problem):
         kb_pos = PropKB()
         kb_pos.tell(decode_state(state, self.state_map).pos_sentence())
         
-        for clause in self.state_map:
-            if clause not in kb_pos.clauses:
-                return False
-            
-        for action in self.actions:
-            pos_pass = all([precond_pos in kb_pos.clauses
-                        for precond_pos in action.precond_pos])
+        for action in self.actions_list:
+            pos_pass = all([condition in kb_pos.clauses
+                        for condition in action.precond_pos])
                                 
-            neg_pass = all([precond_neg not in kb_pos.clauses
-                        for precond_neg in action.precond_neg])
+            neg_pass = all([condition not in kb_pos.clauses
+                        for condition in action.precond_neg])
             
             if pos_pass and neg_pass:
                 possible_actions.append(action)
@@ -163,12 +158,19 @@ class AirCargoProblem(Problem):
         :param action: Action applied
         :return: resulting state after action
         """
-        # TODO implement
-        new_state = FluentState([], [])
+        
+        #new_state = FluentState([], []) 
+        
+        # read the current state to override some of the values
         new_state = decode_state(state, self.state_map)
         
+        # add new pos states to pos and delete them from neg
         new_state.pos += action.effect_add
-        [new_state.neg.remove(eff_rem) for eff_rem in action.effect_rem]
+        [new_state.neg.remove(effect) for effect in action.effect_add]
+        
+        # add new neg states to neg and delete them from pos
+        new_state.neg += action.effect_rem
+        [new_state.pos.remove(effect) for effect in action.effect_rem]
         
         return encode_state(new_state, self.state_map)
 
@@ -211,8 +213,15 @@ class AirCargoProblem(Problem):
         """
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
         count = 0
+        
+        kb = PropKB()
+        kb.tell(decode_state(node.state, self.state_map).pos_sentence())
+        
+        for clause in self.goal:
+            if clause not in kb.clauses:
+                count += 1
+        
         return count
-
 
 def air_cargo_p1() -> AirCargoProblem:
     cargos = ['C1', 'C2']
@@ -305,11 +314,13 @@ def air_cargo_p3() -> AirCargoProblem:
            expr('At(C3, JFK)'),
            expr('At(C3, SFO)'),
            expr('At(C3, ORD)'),
-           expr('At(C3, SFO)'),
-           expr('At(C3, JFK)'),
-           expr('At(C3, ATL)'),
            expr('In(C3, P1)'),
            expr('In(C3, P2)'),
+           expr('At(C4, SFO)'),
+           expr('At(C4, JFK)'),
+           expr('At(C4, ATL)'),
+           expr('In(C4, P1)'),
+           expr('In(C4, P2)'),
            expr('At(P1, JFK)'),
            expr('At(P1, ATL)'),
            expr('At(P1, ORD)'),
