@@ -2,7 +2,7 @@ from aimacode.planning import Action
 from aimacode.search import Problem
 from aimacode.utils import expr, Expr
 from lp_utils import decode_state
-
+from copy import copy
 
 class PgNode():
     """Base class for planning graph nodes.
@@ -306,6 +306,28 @@ class PlanningGraph():
         #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
         #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
+     
+        
+        
+        ''' CHECK OUT WHAT IS THIS COOP AGAIN'''
+        
+        
+        # create new empty level of actions
+        self.a_levels.append(set())
+        
+        for action in self.all_actions:
+            new_action = PgNode_a(action)
+            
+            # check if new actions preconditions are met
+            if new_action.prenodes.issubset(self.s_levels[level]):
+                
+                # create children for the PgNode_s in previous level
+                for prenode in new_action.prenodes:
+                    prenode.children.add(new_action)
+                    new_action.parents.add(prenode)
+                
+                # add new action to this level
+                self.a_levels[level].add(new_action)
 
     def add_literal_level(self, level):
         """ add an S (literal) level to the Planning Graph
@@ -325,6 +347,21 @@ class PlanningGraph():
         #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
         #   parent sets of the S nodes
 
+
+        # create new empty level of literals
+        self.s_levels.append(set())
+        
+        # all effects states from action at previous level will be children
+        for a_node in self.a_levels[level - 1]:
+            for new_eff_node in a_node.effnodes:
+                
+                # link new effect to its parents and action to its child
+                new_eff_node.parents.add(a_node)
+                a_node.children.add(new_eff_node)
+                
+                # add literal to this level
+                self.s_levels[level].add(new_eff_node)
+            
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
 
@@ -382,6 +419,38 @@ class PlanningGraph():
         :return: bool
         """
         # TODO test for Inconsistent Effects between nodes
+#        start_eval = True
+#        for effect1 in node_a1.effnodes:
+#            for effect2 in node_a2.effnodes:
+#                if effect1 == effect2:
+#                    break
+#            if effect1.is_pos == effect2.is_pos:
+#                
+        
+        for node in node_a1.effnodes:
+            new_node = copy(node)
+            new_node.is_pos = not new_node.is_pos
+
+            
+            for s_node in node_a2.effnodes:
+                if new_node == s_node: #new_node.symbol == s_node.symbol and new_node.is_pos == s_node.is_pos:
+                    return True
+                    
+                    
+#            if set(new_node).issubset(node_a2.effnodes):
+#                    print('yyyeeeeeaaaaaaah!')
+#                    print('------------- action 1\n\n')
+#                    print(node_a1.show())
+#                    print('------------- node 1\n\n')
+#                    print(node.show())
+#                    print(node.is_pos)
+#                    print('------------- action 2\n\n')
+#                    print(node_a2.show())
+#                    for node2 in node_a2.effnodes:
+#                        print('------------- node 2\n\n')
+#                        print(node2.show())
+#                        print(node2.is_pos)
+                    
         return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:

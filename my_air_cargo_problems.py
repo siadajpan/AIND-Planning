@@ -180,8 +180,10 @@ class AirCargoProblem(Problem):
         :param state: str representing state
         :return: bool
         """
+
         kb = PropKB()
         kb.tell(decode_state(state, self.state_map).pos_sentence())
+
         for clause in self.goal:
             if clause not in kb.clauses:
                 return False
@@ -214,9 +216,12 @@ class AirCargoProblem(Problem):
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
         count = 0
         
+        # decode current state
         kb = PropKB()
         kb.tell(decode_state(node.state, self.state_map).pos_sentence())
         
+        # count how many preconditions are not met yet. This is equal to 
+        # min amount of actions to be taken
         for clause in self.goal:
             if clause not in kb.clauses:
                 count += 1
